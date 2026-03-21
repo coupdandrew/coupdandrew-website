@@ -1,0 +1,51 @@
+name: Build and Deploy to Neocities
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  FORCE_COLOR: 1
+
+concurrency:
+  group: build-and-deploy-to-neocities
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository code
+        uses: actions/checkout@v6.0.2
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6.3.0
+        with:
+          node-version: 24
+
+      - name: Get npm cache directory
+        id: npm-cache-dir
+        run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v5.0.4
+        id: npm-cache
+        with:
+          path: ${{ steps.npm-cache-dir.outputs.dir }}
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies and build site
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy to Neocities
+        uses: bcomnes/deploy-to-neocities@v3.0.4
+        with:
+          api_key: ${{ secrets.NEOCITIES_API_KEY }}
+          cleanup: true
+          dist_dir: dist
